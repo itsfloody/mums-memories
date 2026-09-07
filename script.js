@@ -45,34 +45,30 @@ function render() {
 }
 
 function crossFadeTo(target) {
-  const outgoing = pageImg.classList.contains('active') ? pageImg : pageImgNext;
-  const incoming = outgoing === pageImg ? pageImgNext : pageImg;
   const photo = PHOTOS[target];
-
   isAnimating = true;
-  incoming.onload = () => {
-    incoming.onload = null;
-    incoming.onerror = null;
-    incoming.alt = 'A photo from ' + (photo.year || "the family album");
-    incoming.classList.add('active');
-    outgoing.classList.remove('active');
-    setTimeout(() => {
-      outgoing.src = '';
-      outgoing.alt = '';
+  pageImg.classList.remove('active');
+  pageImgNext.classList.remove('active');
+  pageImgNext.removeAttribute('src');
+
+  setTimeout(() => {
+    const finish = () => {
+      pageImg.onload = null;
+      pageImg.onerror = null;
+      pageImg.alt = 'A photo from ' + (photo.year || "the family album");
+      pageImg.classList.add('active');
       index = target;
       updatePageDetails();
       isAnimating = false;
       preload(index + 1);
       preload(index - 1);
-    }, 700);
-  };
-  incoming.onerror = () => {
-    incoming.onload = null;
-    incoming.onerror = null;
-    incoming.src = '';
-    isAnimating = false;
-  };
-  incoming.src = 'images/' + photo.file;
+    };
+
+    pageImg.onload = finish;
+    pageImg.onerror = () => { isAnimating = false; };
+    pageImg.src = 'images/' + photo.file;
+    if (pageImg.complete && pageImg.naturalWidth > 0) finish();
+  }, 700);
 }
 
 function preload(i) {
@@ -116,11 +112,12 @@ function goNext(loop = false) {
     index = -1;
   }
   if (!loop && autoplayTimer) setAutoplay(true);
-  crossFadeTo(loop ? 0 : index + 1);
+  crossFadeTo(index + 1);
 }
 
 function goPrev() {
-  if (isAnimating || index === 0) return;
+  if (isAnimating) return;
+  if (index === 0) return;
   if (autoplayTimer) setAutoplay(true);
   crossFadeTo(index - 1);
 }
@@ -157,11 +154,11 @@ function jumpTo(pageNumber) {
   crossFadeTo(target);
 }
 
-openBtn.addEventListener('click', openAlbum);
-nextBtn.addEventListener('click', goNext);
-prevBtn.addEventListener('click', goPrev);
-closeBtn.addEventListener('click', closeAlbum);
-restartBtn.addEventListener('click', restart);
+openBtn.onclick = openAlbum;
+nextBtn.onclick = () => goNext();
+prevBtn.onclick = () => goPrev();
+closeBtn.onclick = closeAlbum;
+restartBtn.onclick = restart;
 autoplayBtn.addEventListener('click', () => setAutoplay(!autoplayTimer));
 
 gotoBtn.addEventListener('click', () => {
