@@ -21,7 +21,7 @@
         <p class="cover-eyebrow">A collection of memories</p>
         <h1 class="cover-title">Happy Birthday,<br>Mum</h1>
         <div class="cover-clasp"></div>
-        <button class="open-btn" id="openBtn" type="button">Open the album</button>
+        <button class="open-btn" id="openBtn" type="button">Open</button>
       </div>
       <div class="cover-spine"></div>
     </section>
@@ -43,7 +43,14 @@
         <svg viewBox="0 0 24 24" width="22" height="22"><path d="M9 4l8 8-8 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
 
-      <div class="folio" id="folio"></div>
+      <div class="page-footer">
+        <span class="folio" id="folio"></span>
+        <span class="goto-bar">
+          <label for="gotoInput" class="goto-label">Go to</label>
+          <input type="number" id="gotoInput" class="goto-input" min="1" placeholder="#" aria-label="Go to page number">
+          <button class="goto-btn" id="gotoBtn" type="button">Go</button>
+        </span>
+      </div>
       <button class="close-btn" id="closeBtn" type="button" aria-label="Close album">Close</button>
     </section>
 
@@ -52,7 +59,7 @@
       <div class="cover-frame">
         <p class="cover-eyebrow">With all our love</p>
         <h2 class="cover-title back-title">Happy Birthday</h2>
-        <button class="open-btn" id="restartBtn" type="button">Back to the start</button>
+        <button class="open-btn" id="restartBtn" type="button">Return to Start</button>
       </div>
     </section>
 

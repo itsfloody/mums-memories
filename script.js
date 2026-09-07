@@ -15,6 +15,8 @@ const openBtn = document.getElementById('openBtn');
 const closeBtn = document.getElementById('closeBtn');
 const restartBtn = document.getElementById('restartBtn');
 const hint = document.getElementById('hint');
+const gotoInput = document.getElementById('gotoInput');
+const gotoBtn = document.getElementById('gotoBtn');
 
 let index = 0;
 let isAnimating = false;
@@ -54,7 +56,7 @@ function openAlbum() {
 function goNext() {
   if (isAnimating) return;
   if (index >= PHOTOS.length - 1) {
-    showBackCover();
+    closeAlbum();
     return;
   }
   isAnimating = true;
@@ -106,11 +108,31 @@ function closeAlbum() {
   }, 300);
 }
 
+function jumpTo(pageNumber) {
+  if (isAnimating) return;
+  const target = Math.min(Math.max(pageNumber, 1), PHOTOS.length) - 1;
+  if (target === index) return;
+  index = target;
+  render();
+  preload(index + 1);
+  preload(index - 1);
+}
+
 openBtn.addEventListener('click', openAlbum);
 nextBtn.addEventListener('click', goNext);
 prevBtn.addEventListener('click', goPrev);
 closeBtn.addEventListener('click', closeAlbum);
 restartBtn.addEventListener('click', restart);
+
+gotoBtn.addEventListener('click', () => {
+  const val = parseInt(gotoInput.value, 10);
+  if (!isNaN(val)) jumpTo(val);
+  gotoInput.value = '';
+  gotoInput.blur();
+});
+gotoInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') gotoBtn.click();
+});
 
 document.addEventListener('keydown', (e) => {
   if (cover.hasAttribute('hidden') === false) return;
