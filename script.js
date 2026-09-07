@@ -76,6 +76,7 @@ function goNext(loop = false) {
     }
     index = -1;
   }
+  if (!loop && autoplayTimer) setAutoplay(true);
   isAnimating = true;
   leaf.classList.add('fading');
   setTimeout(() => {
@@ -89,6 +90,7 @@ function goNext(loop = false) {
 
 function goPrev() {
   if (isAnimating || index === 0) return;
+  if (autoplayTimer) setAutoplay(true);
   isAnimating = true;
   leaf.classList.add('fading');
   setTimeout(() => {

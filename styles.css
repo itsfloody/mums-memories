@@ -169,12 +169,12 @@ body {
 .pages.visible { opacity: 1; transition: opacity 0.7s ease 0.2s; }
 
 .leaf {
-  width: min(78%, 560px);
+  width: min(calc(100% - 96px), 760px);
   height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 20px 10px 46px;
+  padding: 14px 0 46px;
   transition: opacity 0.7s ease;
 }
 .leaf.fading { opacity: 0; }
@@ -184,7 +184,7 @@ body {
   min-height: 0;
   width: 100%;
   background: #fff;
-  padding: 10px;
+  padding: 6px;
   box-shadow: 0 14px 26px -10px rgba(59, 42, 30, 0.35);
   border: 1px solid rgba(59, 42, 30, 0.06);
   display: flex;
@@ -194,8 +194,8 @@ body {
 }
 
 .photo-mount img {
-  max-width: 100%;
-  max-height: 100%;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
   display: block;
 }
