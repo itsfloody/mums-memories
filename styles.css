@@ -295,6 +295,20 @@ body {
 .goto-btn:hover { transform: translateY(-1px); }
 .goto-btn:active { transform: translateY(0); }
 
+.autoplay-btn {
+  font-family: var(--sans);
+  font-size: 13px;
+  color: var(--leather-2);
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+  border: none;
+  padding: 5px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.autoplay-btn:hover { transform: translateY(-1px); }
+.autoplay-btn:active { transform: translateY(0); }
+
 .close-btn {
   position: absolute;
   top: 14px;

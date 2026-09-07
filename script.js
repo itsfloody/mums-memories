@@ -17,9 +17,11 @@ const restartBtn = document.getElementById('restartBtn');
 const hint = document.getElementById('hint');
 const gotoInput = document.getElementById('gotoInput');
 const gotoBtn = document.getElementById('gotoBtn');
+const autoplayBtn = document.getElementById('autoplayBtn');
 
 let index = 0;
 let isAnimating = false;
+let autoplayTimer = null;
 
 function captionFor(photo) {
   return photo.year ? String(photo.year) : '';
@@ -41,7 +43,21 @@ function preload(i) {
   }
 }
 
+function setAutoplay(enabled) {
+  if (autoplayTimer) clearInterval(autoplayTimer);
+  autoplayTimer = enabled ? setInterval(() => goNext(true), 5000) : null;
+  autoplayBtn.textContent = enabled ? 'Pause' : 'Play';
+  autoplayBtn.setAttribute('aria-pressed', String(enabled));
+}
+
+function requestLandscape() {
+  if (screen.orientation && screen.orientation.lock) {
+    screen.orientation.lock('landscape').catch(() => {});
+  }
+}
+
 function openAlbum() {
+  requestLandscape();
   cover.classList.add('opening');
   hint.textContent = 'Use the arrows, or swipe, to turn the pages';
   pagesEl.removeAttribute('hidden');
@@ -51,11 +67,14 @@ function openAlbum() {
   preload(1);
 }
 
-function goNext() {
+function goNext(loop = false) {
   if (isAnimating) return;
   if (index >= PHOTOS.length - 1) {
-    closeAlbum();
-    return;
+    if (!loop) {
+      closeAlbum();
+      return;
+    }
+    index = -1;
   }
   isAnimating = true;
   leaf.classList.add('fading');
@@ -90,6 +109,7 @@ function showBackCover() {
 }
 
 function restart() {
+  setAutoplay(false);
   index = 0;
   backCover.setAttribute('hidden', '');
   cover.classList.remove('opening');
@@ -97,6 +117,7 @@ function restart() {
 }
 
 function closeAlbum() {
+  setAutoplay(false);
   pagesEl.classList.remove('visible');
   setTimeout(() => {
     pagesEl.setAttribute('hidden', '');
@@ -119,6 +140,7 @@ nextBtn.addEventListener('click', goNext);
 prevBtn.addEventListener('click', goPrev);
 closeBtn.addEventListener('click', closeAlbum);
 restartBtn.addEventListener('click', restart);
+autoplayBtn.addEventListener('click', () => setAutoplay(!autoplayTimer));
 
 gotoBtn.addEventListener('click', () => {
   const val = parseInt(gotoInput.value, 10);
