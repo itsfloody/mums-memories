@@ -59,7 +59,7 @@ function requestLandscape() {
 function openAlbum() {
   requestLandscape();
   cover.classList.add('opening');
-  hint.textContent = 'Use the arrows, or swipe, to turn the pages';
+  hint.textContent = 'Swipe or use the arrows to turn pages';
   pagesEl.removeAttribute('hidden');
   render(true);
   requestAnimationFrame(() => pagesEl.classList.add('visible'));
