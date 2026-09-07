@@ -2,8 +2,10 @@
 update_album.py
 ----------------
 Run this after dropping new photo(s) straight into the "images" folder
-(any filename, original size is fine). It will:
+(any filename, original size is fine), or to remove photos you no
+longer want. It will:
 
+  ADDING (default, always runs):
   1. Find any image files in images/ that aren't in the album yet
   2. Work out roughly what year each one is from (EXIF, then filename)
   3. Resize/compress them to match the rest of the album
@@ -13,17 +15,28 @@ Run this after dropping new photo(s) straight into the "images" folder
   6. Warn you if a new photo looks like a near-duplicate of one
      already in the album, so you can double check before uploading
 
+  REMOVING (--remove):
+  Deletes photos from the album (and from disk) by page number
+  (their current position, 1-based) or by filename.
+
+  LISTING (--list):
+  Prints every photo's current page number, filename, and year,
+  so you know what to pass to --remove.
+
 Requirements:
     pip install Pillow
 
 Run from inside the "album" folder (same folder as index.html):
-    python update_album.py
+    python update_album.py                  # just add new photos
+    python update_album.py --list           # show page numbers
+    python update_album.py --remove 45 087.jpg   # remove by page # or filename
+    python update_album.py --remove 12 --remove 87.jpg   # (repeatable too)
 """
 
 import os
 import re
 import json
-import shutil
+import argparse
 from PIL import Image, ImageOps
 from PIL.ExifTags import TAGS
 
@@ -136,90 +149,149 @@ def save_photos(content, photos):
 
 # ---------- main ----------
 
+def resolve_targets(args_remove, photos):
+    """Turn --remove values (page numbers or filenames) into a set of filenames."""
+    targets = set()
+    for val in args_remove:
+        if val.isdigit():
+            page = int(val)
+            if 1 <= page <= len(photos):
+                targets.add(photos[page - 1]['file'])
+            else:
+                print(f"  (skipping --remove {val}: no page {val} — album has {len(photos)} photos)")
+        else:
+            fname = val if val.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.webp')) else val + '.jpg'
+            if any(p['file'] == fname for p in photos):
+                targets.add(fname)
+            else:
+                print(f"  (skipping --remove {val}: no photo with that filename)")
+    return targets
+
+
 def main():
+    parser = argparse.ArgumentParser(description="Add/remove/list photos in the album.")
+    parser.add_argument('--list', action='store_true', help="Show page number, filename, year for every photo, then exit.")
+    parser.add_argument('--remove', action='append', default=[], metavar='PAGE_OR_FILENAME',
+                         help="Remove a photo by its current page number or filename. Repeatable.")
+    args = parser.parse_args()
+
     if not os.path.isfile(SCRIPT_JS):
         print(f"Can't find {SCRIPT_JS} — run this from inside the 'album' folder.")
         return
 
     content, photos = load_photos()
-    tracked_files = {p['file'] for p in photos}
-    print(f"Album currently has {len(photos)} photos.")
 
+    if args.list:
+        print(f"{len(photos)} photos in the album:\n")
+        for i, p in enumerate(photos, start=1):
+            tag = "  (pinned first)" if i == 1 else ""
+            print(f"  {i:>4}   {p['file']:<12} year: {p['year'] or 'unknown'}{tag}")
+        return
+
+    original_pinned_file = photos[0]['file'] if photos else None
+
+    # ---- explicit removals ----
+    explicit_targets = resolve_targets(args.remove, photos)
+    removed = [p for p in photos if p['file'] in explicit_targets]
+    photos = [p for p in photos if p['file'] not in explicit_targets]
+    for p in removed:
+        path = os.path.join(IMAGES_DIR, p['file'])
+        if os.path.isfile(path):
+            os.remove(path)
+    if removed:
+        print(f"Removed {len(removed)} photo(s) by request: {', '.join(p['file'] for p in removed)}")
+
+    # ---- auto-detect photos deleted straight from the images/ folder ----
+    files_on_disk = set(os.listdir(IMAGES_DIR))
+    auto_missing = [p for p in photos if p['file'] not in files_on_disk]
+    if auto_missing:
+        photos = [p for p in photos if p['file'] in files_on_disk]
+        print(f"Detected {len(auto_missing)} photo(s) deleted from images/: "
+              f"{', '.join(p['file'] for p in auto_missing)}")
+
+    tracked_files = {p['file'] for p in photos}
+    print(f"Album now has {len(photos)} photos before checking for new ones.")
+
+    # ---- detect new photos ----
     all_files = sorted(os.listdir(IMAGES_DIR))
     new_files = [f for f in all_files
                  if f.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.webp'))
                  and f not in tracked_files]
 
-    if not new_files:
-        print("No new photos found in images/ — nothing to do.")
-        return
-
-    print(f"Found {len(new_files)} new photo(s): {', '.join(new_files)}")
-
-    # existing numbering
-    existing_numbers = [int(p['file'].split('.')[0]) for p in photos
-                         if p['file'].split('.')[0].isdigit()]
-    next_num = (max(existing_numbers) + 1) if existing_numbers else 1
-
-    # hashes of everything currently in the album, for duplicate warnings
-    existing_hashes = {}
-    for p in photos:
-        h = dhash(os.path.join(IMAGES_DIR, p['file']))
-        if h is not None:
-            existing_hashes[p['file']] = h
-
     new_entries = []
     warnings = []
 
-    for fname in new_files:
-        src_path = os.path.join(IMAGES_DIR, fname)
-        year = get_year(src_path, fname)
-        new_hash = dhash(src_path)
+    if new_files:
+        print(f"Found {len(new_files)} new photo(s): {', '.join(new_files)}")
 
-        if new_hash is not None:
-            for existing_file, existing_hash in existing_hashes.items():
-                d = hamming(new_hash, existing_hash)
-                if d <= DUPLICATE_HAMMING_THRESHOLD:
-                    warnings.append(f"  '{fname}' looks similar to existing '{existing_file}' (distance {d})")
+        existing_numbers = [int(p['file'].split('.')[0]) for p in photos
+                             if p['file'].split('.')[0].isdigit()]
+        next_num = (max(existing_numbers) + 1) if existing_numbers else 1
 
-        # resize/compress and rename into the numbered scheme
-        img = Image.open(src_path)
-        img = ImageOps.exif_transpose(img)
-        img = img.convert('RGB')
-        w, h = img.size
-        if max(w, h) > MAX_DIM:
-            scale = MAX_DIM / max(w, h)
-            img = img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
+        existing_hashes = {}
+        for p in photos:
+            h = dhash(os.path.join(IMAGES_DIR, p['file']))
+            if h is not None:
+                existing_hashes[p['file']] = h
 
-        out_name = f'{next_num:03d}.jpg'
-        out_path = os.path.join(IMAGES_DIR, out_name)
-        img.save(out_path, quality=JPEG_QUALITY, optimize=True)
+        for fname in new_files:
+            src_path = os.path.join(IMAGES_DIR, fname)
+            year = get_year(src_path, fname)
+            new_hash = dhash(src_path)
 
-        os.remove(src_path)  # remove the original (now replaced by the numbered copy)
+            if new_hash is not None:
+                for existing_file, existing_hash in existing_hashes.items():
+                    d = hamming(new_hash, existing_hash)
+                    if d <= DUPLICATE_HAMMING_THRESHOLD:
+                        warnings.append(f"  '{fname}' looks similar to existing '{existing_file}' (distance {d})")
 
-        new_entries.append({'file': out_name, 'year': year})
-        if new_hash is not None:
-            existing_hashes[out_name] = new_hash
-        next_num += 1
+            img = Image.open(src_path)
+            img = ImageOps.exif_transpose(img)
+            img = img.convert('RGB')
+            w, h = img.size
+            if max(w, h) > MAX_DIM:
+                scale = MAX_DIM / max(w, h)
+                img = img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
 
-    # merge: keep photos[0] pinned, sort the rest (existing + new) by year
-    pinned = photos[0] if photos else None
-    rest = photos[1:] if photos else []
+            out_name = f'{next_num:03d}.jpg'
+            out_path = os.path.join(IMAGES_DIR, out_name)
+            img.save(out_path, quality=JPEG_QUALITY, optimize=True)
+            os.remove(src_path)
+
+            new_entries.append({'file': out_name, 'year': year})
+            if new_hash is not None:
+                existing_hashes[out_name] = new_hash
+            next_num += 1
+    else:
+        print("No new photos found in images/.")
+
+    if not removed and not auto_missing and not new_entries:
+        print("Nothing changed.")
+        return
+
+    # ---- merge: keep the original pinned photo first, if it still exists ----
+    pinned = None
+    rest = photos
+    if original_pinned_file and any(p['file'] == original_pinned_file for p in photos):
+        pinned = next(p for p in photos if p['file'] == original_pinned_file)
+        rest = [p for p in photos if p['file'] != original_pinned_file]
+
     combined = rest + new_entries
     combined.sort(key=lambda p: (p['year'] is None, p['year'] or 9999))
     final = ([pinned] if pinned else []) + combined
 
     save_photos(content, final)
 
-    print(f"\nAdded {len(new_entries)} photo(s). Album now has {len(final)} photos total.")
-    for e in new_entries:
-        print(f"  {e['file']}  (year: {e['year'] or 'unknown'})")
+    print(f"\nAlbum now has {len(final)} photos total.")
+    if new_entries:
+        for e in new_entries:
+            print(f"  + {e['file']}  (year: {e['year'] or 'unknown'})")
 
     if warnings:
         print("\nPossible duplicates to double-check:")
         for w in warnings:
             print(w)
-        print("(These were still added — remove them yourself from script.js if they're really duplicates.)")
+        print("(These were still added — remove them with --remove if they're really duplicates.)")
 
     print("\nDone. Review the site locally, then git add / commit / push as usual.")
 

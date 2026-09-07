@@ -152,8 +152,9 @@ body {
 .open-btn:active { transform: translateY(0); }
 
 .cover.opening {
-  transform: rotateY(-140deg);
-  transition: transform 0.9s cubic-bezier(.55,.05,.35,1);
+  opacity: 0;
+  transform: none;
+  transition: opacity 0.9s ease;
 }
 
 /* ---------- pages ---------- */
@@ -165,7 +166,7 @@ body {
   justify-content: center;
   opacity: 0;
 }
-.pages.visible { opacity: 1; transition: opacity 0.4s ease 0.15s; }
+.pages.visible { opacity: 1; transition: opacity 0.7s ease 0.2s; }
 
 .leaf {
   width: min(78%, 560px);
@@ -174,12 +175,9 @@ body {
   flex-direction: column;
   align-items: center;
   padding: 20px 10px 46px;
-  transform-origin: center left;
-  transition: transform 0.55s cubic-bezier(.55,.05,.35,1);
-  backface-visibility: hidden;
+  transition: opacity 0.7s ease;
 }
-.leaf.turning-next { transform: rotateY(-92deg); }
-.leaf.turning-prev { transform: rotateY(92deg); }
+.leaf.fading { opacity: 0; }
 
 .photo-mount {
   flex: 1 1 auto;
