@@ -7,6 +7,7 @@ const backCover = document.getElementById('backCover');
 const pagesEl = document.getElementById('pagesEl');
 const leaf = document.getElementById('leaf');
 const pageImg = document.getElementById('pageImg');
+const pageImgNext = document.getElementById('pageImgNext');
 const pageCaption = document.getElementById('pageCaption');
 const folio = document.getElementById('folio');
 const prevBtn = document.getElementById('prevBtn');
@@ -27,13 +28,51 @@ function captionFor(photo) {
   return photo.year ? String(photo.year) : '';
 }
 
-function render(instant) {
-  pageImg.src = 'images/' + PHOTOS[index].file;
-  pageImg.alt = 'A photo from ' + (PHOTOS[index].year || "the family album");
+function updatePageDetails() {
   pageCaption.textContent = captionFor(PHOTOS[index]);
   folio.textContent = (index + 1) + ' / ' + PHOTOS.length;
   prevBtn.disabled = index === 0;
   nextBtn.disabled = false;
+}
+
+function render() {
+  pageImg.src = 'images/' + PHOTOS[index].file;
+  pageImg.alt = 'A photo from ' + (PHOTOS[index].year || "the family album");
+  pageImg.classList.add('active');
+  pageImgNext.classList.remove('active');
+  pageImgNext.src = '';
+  updatePageDetails();
+}
+
+function crossFadeTo(target) {
+  const outgoing = pageImg.classList.contains('active') ? pageImg : pageImgNext;
+  const incoming = outgoing === pageImg ? pageImgNext : pageImg;
+  const photo = PHOTOS[target];
+
+  isAnimating = true;
+  incoming.onload = () => {
+    incoming.onload = null;
+    incoming.onerror = null;
+    incoming.alt = 'A photo from ' + (photo.year || "the family album");
+    incoming.classList.add('active');
+    outgoing.classList.remove('active');
+    setTimeout(() => {
+      outgoing.src = '';
+      outgoing.alt = '';
+      index = target;
+      updatePageDetails();
+      isAnimating = false;
+      preload(index + 1);
+      preload(index - 1);
+    }, 700);
+  };
+  incoming.onerror = () => {
+    incoming.onload = null;
+    incoming.onerror = null;
+    incoming.src = '';
+    isAnimating = false;
+  };
+  incoming.src = 'images/' + photo.file;
 }
 
 function preload(i) {
@@ -61,7 +100,7 @@ function openAlbum() {
   cover.classList.add('opening');
   hint.textContent = 'Swipe or use the arrows to turn pages';
   pagesEl.removeAttribute('hidden');
-  render(true);
+  render();
   requestAnimationFrame(() => pagesEl.classList.add('visible'));
   setTimeout(() => cover.setAttribute('hidden', ''), 900);
   preload(1);
@@ -77,29 +116,13 @@ function goNext(loop = false) {
     index = -1;
   }
   if (!loop && autoplayTimer) setAutoplay(true);
-  isAnimating = true;
-  leaf.classList.add('fading');
-  setTimeout(() => {
-    index += 1;
-    render();
-    requestAnimationFrame(() => leaf.classList.remove('fading'));
-    isAnimating = false;
-    preload(index + 1);
-  }, 700);
+  crossFadeTo(loop ? 0 : index + 1);
 }
 
 function goPrev() {
   if (isAnimating || index === 0) return;
   if (autoplayTimer) setAutoplay(true);
-  isAnimating = true;
-  leaf.classList.add('fading');
-  setTimeout(() => {
-    index -= 1;
-    render();
-    requestAnimationFrame(() => leaf.classList.remove('fading'));
-    isAnimating = false;
-    preload(index - 1);
-  }, 700);
+  crossFadeTo(index - 1);
 }
 
 function showBackCover() {
@@ -131,10 +154,7 @@ function jumpTo(pageNumber) {
   if (isAnimating) return;
   const target = Math.min(Math.max(pageNumber, 1), PHOTOS.length) - 1;
   if (target === index) return;
-  index = target;
-  render();
-  preload(index + 1);
-  preload(index - 1);
+  crossFadeTo(target);
 }
 
 openBtn.addEventListener('click', openAlbum);
