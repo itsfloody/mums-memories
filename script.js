@@ -47,7 +47,8 @@ function fadeMusicIn() {
   }, 60);
 }
 
-function fadeMusicOut(thenPause) {
+function fadeMusicOut(thenPause, resetTime) {
+  if (resetTime === undefined) resetTime = true;
   clearFade();
   const startVol = bgMusic.volume;
   const steps = 12;
@@ -58,8 +59,14 @@ function fadeMusicOut(thenPause) {
     if (i >= steps) {
       clearFade();
       if (thenPause) {
+        // .pause() is the only thing guaranteed to actually stop sound on
+        // every platform — iOS Safari in particular ignores JS volume
+        // changes entirely (device volume there is hardware-only), so a
+        // volume-only fade is silent on desktop but does nothing audible
+        // on an iPhone/iPad. Always pause here regardless of whether the
+        // volume fade itself was visible.
         bgMusic.pause();
-        bgMusic.currentTime = 0;
+        if (resetTime) bgMusic.currentTime = 0;
       }
     }
   }, 40);
@@ -71,7 +78,9 @@ function toggleMusic() {
   if (musicOn) {
     fadeMusicIn();
   } else {
-    fadeMusicOut(false);
+    // thenPause=true (actually stop the sound everywhere), resetTime=false
+    // (keep position so turning it back on resumes rather than restarts)
+    fadeMusicOut(true, false);
   }
 }
 
